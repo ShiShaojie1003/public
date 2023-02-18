@@ -1,0 +1,79 @@
+name: DBNet
+base: ['config/icdar2015.yaml']
+arch:
+  type: Model
+  backbone:
+    type: resnet18
+    pretrained: true
+  neck:
+    type: FPN
+    inner_channels: 256
+  head:
+    type: DBHead
+    out_channels: 2
+    k: 50
+post_processing:
+  type: SegDetectorRepresenter
+  args:
+    thresh: 0.3
+    box_thresh: 0.7
+    max_candidates: 1000
+    unclip_ratio: 1.5 # from paper
+metric:
+  type: QuadMetric
+  args:
+    is_output_polygon: false
+loss:
+  type: DBLoss
+  alpha: 1
+  beta: 10
+  ohem_ratio: 3
+optimizer:
+  type: Adam
+  args:
+    lr: 0.001
+    weight_decay: 0
+    amsgrad: true
+lr_scheduler:
+  type: WarmupPolyLR
+  args:
+    warmup_epoch: 3
+trainer:
+  seed: 2
+  epochs: 200
+  log_iter: 10
+  show_images_iter: 50
+  resume_checkpoint: ''
+  finetune_checkpoint: ''
+  output_dir: output
+  tensorboard: false
+dataset:
+  train:
+    dataset:
+      args:
+        data_path:
+          - ./datasets/train.txt  # 自己train.txt文件存放的位置
+        img_mode: RGB
+    loader:
+      batch_size: 16  # batch size大小，根据GPU显存以及GPU数量来设置，网络中使用的BN归一化，所以batch size不要过大或者过小
+      shuffle: true  # 打乱数据集加载顺序，建议使用
+      pin_memory: true  # 内存较大时使用，建议加上，DBNet进行了太多的数据增强变换操作，这样训练会快一点
+      num_workers: 16    # 加载数据的线程数，配置好的话调大点，可以加快训练速度
+      collate_fn: ''
+  validate:
+    dataset:
+      args:
+        data_path:
+          - ./datasets/test.txt
+        pre_processes:
+          - type: ResizeShortSize
+            args:
+              short_size: 736  # 最短边根据显存大小来缩放，这个配置的话16G显存的P100显卡都带不动，显存占用最大可以达到17G
+              resize_text_polys: false
+        img_mode: RGB
+    loader:
+      batch_size: 1  # 必须为1，否则显存带不动
+      shuffle: false
+      pin_memory: true
+      num_workers: 6
+      collate_fn: ICDARCollectFN

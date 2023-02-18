@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0 python tools/predict.py --model_path tools/model_best.pth --input_folder datasets/icpr_mtwi_task2/image_test --output_folder test/output --thre 0.6
